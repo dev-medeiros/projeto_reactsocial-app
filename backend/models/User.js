@@ -14,5 +14,20 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
+    profileImage: {
+        type: String,
+        required: true,
+    },
+    bio: {
+        type: String,
+        required: true,
+    },
+    Timestamp: {
+        type: Date,
+        default: Date.now,
+    },
     });
-    
+
+    const User = mongoose.model("User", userSchema);
+
+    module.exports = User;
