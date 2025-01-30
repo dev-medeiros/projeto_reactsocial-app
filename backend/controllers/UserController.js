@@ -35,7 +35,7 @@ const register = async (req, res) => {
     });
 
     // Se a criação do usuário falhar, retorna um erro
-    if (!newUser) { 
+    if (!newUser) {
       return res.status(422).json({ errors: ["Houve um erro, por favor tente mais tarde."] });
     }
 
@@ -52,11 +52,32 @@ const register = async (req, res) => {
 };
 
 // Login do usuário
-const login = (req, res) => {
-  res.send("Login");
-}
+const login = async (req, res) => {
+  const { email, password } = req.body;
 
+  // Corrigido o erro de digitação
+  const user = await User.findOne({ email });
+
+  // Verifica se o usuário existe
+  if (!user) {
+    return res.status(404).json({ error: "Usuário não encontrado" });
+  }
+
+  // Verifica se a senha está correta
+  if (!(await bcrypt.compare(password, user.password))) {
+    return res.status(422).json({ error: "Senha inválida" });
+  }
+
+  // Retorna os dados e o token
+  res.status(200).json({
+    _id: user._id,
+    // Se você não tiver o campo profileImage, remova ele aqui
+    // profileImage: user.profileImage, 
+    token: generateToken(user._id),
+  });
+};
 
 module.exports = {
-  register, login,
+  register, 
+  login,
 };
