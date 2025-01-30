@@ -29,4 +29,22 @@ const userCreateValidation = () => {
   ];
 };
 
-module.exports = { userCreateValidation };
+const loginValidation = () => {
+    return [
+        body("email")
+            .notEmpty()
+            .withMessage("Email é obrigatório")
+            .isEmail()
+            .withMessage("Insira um email válido"),
+        body("password")
+            .notEmpty()
+            .withMessage("Senha é obrigatória")
+            .isLength({ min: 6 })
+            .withMessage("Senha deve ter no mínimo 6 caracteres"),
+    ];
+
+};
+
+
+
+module.exports = { userCreateValidation, loginValidation, };
