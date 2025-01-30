@@ -26,9 +26,6 @@ const userCreateValidation = () => {
             }
             return true;
         }),
-    body("bio")
-        .notEmpty()
-        .withMessage("Biografia é obrigatória"),
   ];
 };
 

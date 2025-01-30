@@ -14,14 +14,6 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
-    profileImage: {
-        type: String,
-        required: true,
-    },
-    bio: {
-        type: String,
-        required: true,
-    },
     timestamp: { 
         type: Date,
         default: Date.now,
