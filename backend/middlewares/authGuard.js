@@ -18,9 +18,15 @@ const authGuard = async (req, res, next) => {
   try {
     // Verifica e decodifica o token JWT usando o segredo
     const verified = jwt.verify(token, jwtSecret);
+    console.log("Token verificado:", verified);
 
     // Se o token for válido, encontra o usuário correspondente
     req.user = await User.findById(verified.id).select("-password");
+
+    // Verifica se o usuário existe
+    if (!req.user) {
+      return res.status(404).json({ errors: ["Usuário não encontrado!"] });
+    }
 
     // Passa o controle para o próximo middleware ou rota
     next();
