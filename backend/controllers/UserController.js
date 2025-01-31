@@ -83,9 +83,40 @@ const getCurrentUser = async (req, res) => {
   res.status(200).json(user); 
 };
 
+// Update an user
+const update = async (req, res) => {
+  // Lógica para atualizar o usuário (pode incluir a imagem de perfil)
+  const { name, email } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (req.file) user.profileImage = req.file.path;
+
+    await user.save();
+
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profileImage: user.profileImage,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro ao atualizar o usuário" });
+  }
+};
 
 module.exports = {
   register, 
   login,
   getCurrentUser,
+  update,
 };
