@@ -1,144 +1,158 @@
+// Importa o modelo de usuário e bibliotecas necessárias
 const User = require("../models/User");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");  // Para criptografar senhas
+const jwt = require("jsonwebtoken");  // Para gerar tokens JWT
+const { default: mongoose } = require("mongoose");
 
-const jwtSecret = process.env.JWT_SECRET;
+const jwtSecret = process.env.JWT_SECRET;  // Segredo para criar o token JWT
 
-// Gerar token para o usuário
+// Função para gerar o token JWT para o usuário
 const generateToken = (id) => {
   return jwt.sign({ id }, jwtSecret, {
-    expiresIn: 86400,
+    expiresIn: "7d",  // O token expira em 7 dias
   });
 };
 
-// Registrar usuário e autenticar
+// Registrar um novo usuário e autenticar
 const register = async (req, res) => {
   const { name, email, password } = req.body;
 
-  try {
-    // Verifica se o usuário já existe
-    const user = await User.findOne({ email });
+  // Verifica se o usuário já existe
+  const user = await User.findOne({ email });
 
-    if (user) {
-      return res.status(400).json({ error: "Usuário já existe" });
-    }
-
-    // Gerar hash da senha
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // Criar usuário
-    const newUser = await User.create({
-      name,
-      email,
-      password: passwordHash,
-    });
-
-    // Se a criação do usuário falhar, retorna um erro
-    if (!newUser) {
-      return res
-        .status(422)
-        .json({ errors: ["Houve um erro, por favor tente mais tarde."] });
-    }
-
-    // Se o usuário foi criado com sucesso, retorna os dados e o token
-    res.status(201).json({
-      _id: newUser._id,
-      token: generateToken(newUser._id),
-    });
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ errors: ["Erro no servidor, tente novamente mais tarde."] });
+  if (user) {
+    res.status(422).json({ errors: ["Por favor, utilize outro e-mail."] });
+    return;
   }
+
+  // Gera o hash da senha
+  const salt = await bcrypt.genSalt();
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  // Cria o novo usuário
+  const newUser = await User.create({
+    name,
+    email,
+    password: passwordHash,
+  });
+
+  // Se o usuário não for criado, retorna erro
+  if (!newUser) {
+    res.status(422).json({
+      errors: ["Houve um erro, por favor tente novamente mais tarde."],
+    });
+    return;
+  }
+
+  // Retorna o usuário criado junto com o token
+  res.status(201).json({
+    _id: newUser._id,
+    token: generateToken(newUser._id),
+  });
 };
 
-// Login do usuário
+// Obtém os dados do usuário logado
+const getCurrentUser = async (req, res) => {
+  const user = req.user;  // O usuário é extraído da requisição (autenticado)
+
+  // Retorna os dados do usuário logado
+  res.status(200).json(user);
+};
+
+// Fazer login do usuário
 const login = async (req, res) => {
   const { email, password } = req.body;
 
-  // Corrigido o erro de digitação
+  // Verifica se o usuário existe
   const user = await User.findOne({ email });
 
-  // Verifica se o usuário existe
   if (!user) {
-    return res.status(404).json({ error: "Usuário não encontrado" });
+    res.status(404).json({ errors: ["Usuário não encontrado!"] });
+    return;
   }
 
   // Verifica se a senha está correta
   if (!(await bcrypt.compare(password, user.password))) {
-    return res.status(422).json({ error: "Senha inválida" });
+    res.status(422).json({ errors: ["Senha inválida!"] });
+    return;
   }
 
-  // Retorna os dados e o token
+  // Retorna os dados do usuário com o token
   res.status(200).json({
     _id: user._id,
+    profileImage: user.profileImage,
     token: generateToken(user._id),
   });
 };
 
-// Get current logged in user
-const getCurrentUser = async (req, res) => {
-  const user = req.user;
-
-  res.status(200).json(user);
-};
-
-// Update an user
+// Atualizar dados do usuário (nome, senha, imagem de perfil, bio)
 const update = async (req, res) => {
-  // Lógica para atualizar o usuário (pode incluir a imagem de perfil)
   const { name, password, bio } = req.body;
 
   let profileImage = null;
 
+  // Verifica se há uma imagem de perfil carregada
   if (req.file) {
     profileImage = req.file.filename;
   }
 
-  const reqUser = req.user;
+  const reqUser = req.user;  // O usuário é extraído da requisição
 
-  // Buscando o usuário com base no ID
-  const user = await User.findById(
-    new mongoose.Types.ObjectId(reqUser._id)
-  ).select("-password");
+  // Busca o usuário no banco de dados
+  const user = await User.findById(mongoose.Types.ObjectId(reqUser._id)).select(
+    "-password"  // Não retorna a senha do usuário
+  );
 
+  // Atualiza os dados do usuário, se presentes na requisição
   if (name) {
     user.name = name;
   }
 
   if (password) {
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt();
+    const passwordHash = await bcrypt.hash(password, salt);
+    user.password = passwordHash;  // Atualiza a senha do usuário
   }
 
   if (profileImage) {
-    user.profileImage = profileImage;  // Atualizando o campo de imagem
+    user.profileImage = profileImage;  // Atualiza a imagem de perfil
   }
 
   if (bio) {
-    // Garantir que a bio seja uma string
-    user.bio = Array.isArray(bio) ? bio.join(' ') : bio;
+    user.bio = bio;  // Atualiza a biografia
   }
 
-  // Salvando as alterações no usuário
+  // Salva as alterações no banco de dados
   await user.save();
 
-  // Retornando o usuário atualizado com os novos campos
-  res.status(200).json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    profileImage: user.profileImage,  // Retornando a imagem de perfil
-    bio: user.bio,  // Retornando a biografia
-  });
+  // Retorna os dados do usuário atualizados
+  res.status(200).json(user);
 };
 
+// Obter os dados de um usuário específico pelo ID
+const getUserById = async (req, res) => {
+  const { id } = req.params;  // Obtém o ID do usuário na URL
 
+  // Busca o usuário pelo ID e exclui a senha da resposta
+  const user = await User.findById(mongoose.Types.ObjectId(id)).select(
+    "-password"
+  );
+
+  // Verifica se o usuário existe
+  if (!user) {
+    res.status(404).json({ errors: ["Usuário não encontrado!"] });
+    return;
+  }
+
+  // Retorna os dados do usuário
+  res.status(200).json(user);
+};
+
+// Exporta as funções do controlador para uso em outras partes da aplicação
 module.exports = {
   register,
-  login,
   getCurrentUser,
+  login,
   update,
+  getUserById,
 };
