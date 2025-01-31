@@ -71,7 +71,6 @@ const login = async (req, res) => {
   // Retorna os dados e o token
   res.status(200).json({
     _id: user._id,
-    // Se você não tiver o campo profileImage, remova ele aqui
     // profileImage: user.profileImage, 
     token: generateToken(user._id),
   });
