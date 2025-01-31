@@ -3,6 +3,7 @@ const router = express.Router();
 
 // Rotas de usuários, prefixadas com /api/users
 router.use("/api/users", require("./UserRoutes"));
+router.use("/api/photos", require("./PhotoRoutes"));
 
 // Rota de teste para verificar se a API está funcionando
 router.get("/", (req, res) => {
