@@ -9,16 +9,21 @@ const authGuard = async (req, res, next) => {
   // Check if header has a token
   if (!token) {
     return res.status(401).json({ error: "Token não fornecido" });
+  }
 
-    // Check if token is valid
-    try {
-      const verified = jwt.verify(token, jwtSecret);
+  // Check if token is valid
+  try {
+    const verified = jwt.verify(token, jwtSecret);
+    req.user = await User.findById(verified.id).select("-password");
 
-      req.user = await User.findById(verified.id).select("-password");
-
-      next();
-    } catch (error) {
-      res.status(401).json({ error: "Token inválido" });
+    if (!req.user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
     }
+
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Token inválido" });
   }
 };
+
+module.exports = authGuard;
