@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 
 const jwtSecret = process.env.JWT_SECRET;
 
@@ -36,7 +37,9 @@ const register = async (req, res) => {
 
     // Se a criação do usuário falhar, retorna um erro
     if (!newUser) {
-      return res.status(422).json({ errors: ["Houve um erro, por favor tente mais tarde."] });
+      return res
+        .status(422)
+        .json({ errors: ["Houve um erro, por favor tente mais tarde."] });
     }
 
     // Se o usuário foi criado com sucesso, retorna os dados e o token
@@ -44,10 +47,11 @@ const register = async (req, res) => {
       _id: newUser._id,
       token: generateToken(newUser._id),
     });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ errors: ["Erro no servidor, tente novamente mais tarde."] });
+    res
+      .status(500)
+      .json({ errors: ["Erro no servidor, tente novamente mais tarde."] });
   }
 };
 
@@ -71,7 +75,6 @@ const login = async (req, res) => {
   // Retorna os dados e o token
   res.status(200).json({
     _id: user._id,
-    // profileImage: user.profileImage, 
     token: generateToken(user._id),
   });
 };
@@ -80,42 +83,61 @@ const login = async (req, res) => {
 const getCurrentUser = async (req, res) => {
   const user = req.user;
 
-  res.status(200).json(user); 
+  res.status(200).json(user);
 };
 
 // Update an user
 const update = async (req, res) => {
   // Lógica para atualizar o usuário (pode incluir a imagem de perfil)
-  const { name, email } = req.body;
+  const { name, password, bio } = req.body;
 
-  try {
-    const user = await User.findById(req.user._id);
+  let profileImage = null;
 
-    if (!user) {
-      return res.status(404).json({ error: "Usuário não encontrado" });
-    }
-
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (req.file) user.profileImage = req.file.path;
-
-    await user.save();
-
-    res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      profileImage: user.profileImage,
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao atualizar o usuário" });
+  if (req.file) {
+    profileImage = req.file.filename;
   }
+
+  const reqUser = req.user;
+
+  // Buscando o usuário com base no ID
+  const user = await User.findById(
+    new mongoose.Types.ObjectId(reqUser._id)
+  ).select("-password");
+
+  if (name) {
+    user.name = name;
+  }
+
+  if (password) {
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+  }
+
+  if (profileImage) {
+    user.profileImage = profileImage;  // Atualizando o campo de imagem
+  }
+
+  if (bio) {
+    // Garantir que a bio seja uma string
+    user.bio = Array.isArray(bio) ? bio.join(' ') : bio;
+  }
+
+  // Salvando as alterações no usuário
+  await user.save();
+
+  // Retornando o usuário atualizado com os novos campos
+  res.status(200).json({
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    profileImage: user.profileImage,  // Retornando a imagem de perfil
+    bio: user.bio,  // Retornando a biografia
+  });
 };
 
+
 module.exports = {
-  register, 
+  register,
   login,
   getCurrentUser,
   update,

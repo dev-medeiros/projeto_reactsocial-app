@@ -54,6 +54,10 @@ const userUpdateValidation = () => {
       .optional()
       .isLength({ min: 6 })
       .withMessage("A senha deve ter no mínimo 6 caracteres"),
+    body("bio")
+      .optional()
+      .isLength({ min: 10 })
+      .withMessage("A bio deve ter no mínimo 10 caracteres"),
   ];
 };
 
